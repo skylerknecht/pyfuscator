@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name='pyfuscator',
     version='0.0.0',
-    packages=find_packages(),
+    py_modules=['pyfuscator'],
     install_requires=[],
     entry_points={
         'console_scripts': [
