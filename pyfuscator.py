@@ -8,6 +8,7 @@ class Pyfuscator(ast.NodeTransformer):
         super().__init__()
         self.var_map = {}
         self.func_map = {}
+        self.func_arg_map = {}
         self.class_map = {}
         self.imported_modules = set()  # Track imported module names
         self.word_list = [
@@ -143,9 +144,9 @@ class Pyfuscator(ast.NodeTransformer):
 
         # Rename function arguments
         for arg in node.args.args:
-            if arg.arg not in self.var_map:
-                self.var_map[arg.arg] = self._random_name()
-            arg.arg = self.var_map[arg.arg]  # Rename the argument
+            if arg.arg not in self.func_arg_map:
+                self.func_arg_map[arg.arg] = self._random_name()
+            arg.arg = self.func_arg_map[arg.arg]  # Rename the argument
 
         node = self.generic_visit(node)  # Process the function body
         return node
@@ -157,9 +158,9 @@ class Pyfuscator(ast.NodeTransformer):
 
         # Rename function arguments
         for arg in node.args.args:
-            if arg.arg not in self.var_map:
-                self.var_map[arg.arg] = self._random_name()
-            arg.arg = self.var_map[arg.arg]  # Rename the argument
+            if arg.arg not in self.func_arg_map:
+                self.func_arg_map[arg.arg] = self._random_name()
+            arg.arg = self.func_arg_map[arg.arg]  # Rename the argument
 
         node = self.generic_visit(node)  # Process the function body
         return node
