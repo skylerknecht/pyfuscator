@@ -8,9 +8,8 @@ class Pyfuscator(ast.NodeTransformer):
         super().__init__()
         self.var_map = {}
         self.func_map = {}
-        self.func_arg_map = {}
         self.class_map = {}
-        self.imported_modules = set()  # Track imported module names
+        self.obfuscate_blacklist = set(dir(__builtins__)) | set(dir(object))
         self.word_list = [
             "apple", "banana", "cherry", "dragon", "elephant", "falcon", "gorilla", "hippo",
             "iguana", "jaguar", "kangaroo", "lion", "monkey", "narwhal", "octopus", "panda",
@@ -27,13 +26,13 @@ class Pyfuscator(ast.NodeTransformer):
     def visit_Import(self, node):
         """ Track imported modules to prevent obfuscation. """
         for alias in node.names:
-            self.imported_modules.add(alias.name.split('.')[0])  
+            self.obfuscate_blacklist.add(alias.name.split('.')[0])  
         return node
 
     def visit_ImportFrom(self, node):
         """ Track module from which functions/classes are imported. """
         if node.module:
-            self.imported_modules.add(node.module.split('.')[0])
+            self.obfuscate_blacklist.add(node.module.split('.')[0])
         return node
 
     def visit_Assign(self, node):
@@ -114,6 +113,8 @@ class Pyfuscator(ast.NodeTransformer):
         # Rename variable assignments
         for target in node.targets:
             if isinstance(target, ast.Name):  # Ensure it's a variable (not an attribute or subscript)
+                if target.id in self.var_map.values() or target.id in self.obfuscate_blacklist:
+                    continue
                 if target.id not in self.var_map:
                     self.var_map[target.id] = self._random_name()
                 target.id = self.var_map[target.id]
@@ -138,29 +139,31 @@ class Pyfuscator(ast.NodeTransformer):
         return node
 
     def visit_FunctionDef(self, node):
-        if node.name not in self.func_map:
-            self.func_map[node.name] = self._random_name()
-        node.name = self.func_map[node.name]
+        if node.name not in self.obfuscate_blacklist:
+            if node.name not in self.func_map:
+                self.func_map[node.name] = self._random_name()
+            node.name = self.func_map[node.name]
 
         # Rename function arguments
         for arg in node.args.args:
-            if arg.arg not in self.func_arg_map:
-                self.func_arg_map[arg.arg] = self._random_name()
-            arg.arg = self.func_arg_map[arg.arg]  # Rename the argument
+            if arg.arg not in self.var_map:
+                self.var_map[arg.arg] = self._random_name()
+            arg.arg = self.var_map[arg.arg]  # Rename the argument
 
         node = self.generic_visit(node)  # Process the function body
         return node
 
     def visit_AsyncFunctionDef(self, node):
-        if node.name not in self.func_map:
-            self.func_map[node.name] = self._random_name()
-        node.name = self.func_map[node.name]
+        if node.name not in self.obfuscate_blacklist:
+            if node.name not in self.func_map:
+                self.func_map[node.name] = self._random_name()
+            node.name = self.func_map[node.name]
 
         # Rename function arguments
         for arg in node.args.args:
-            if arg.arg not in self.func_arg_map:
-                self.func_arg_map[arg.arg] = self._random_name()
-            arg.arg = self.func_arg_map[arg.arg]  # Rename the argument
+            if arg.arg not in self.var_map:
+                self.var_map[arg.arg] = self._random_name()
+            arg.arg = self.var_map[arg.arg]  # Rename the argument
 
         node = self.generic_visit(node)  # Process the function body
         return node
@@ -235,6 +238,16 @@ class Pyfuscator(ast.NodeTransformer):
             keywords=[]
         )
         return ast.copy_location(new_node, node)
+
+    def visit_Call(self, node):
+        """ Obfuscate function calls using func_map """
+        if isinstance(node.func, ast.Name) and node.func.id in self.func_map:
+            node.func.id = self.func_map[node.func.id]
+        elif isinstance(node.func, ast.Attribute) and node.func.attr in self.func_map:
+            node.func.attr = self.func_map[node.func.attr]
+        
+        node.args = [self.visit(arg) for arg in node.args]
+        return self.generic_visit(node)
     
     def obfuscate_python_file(self, file_path: str, new_name: str, word_list):
         """ Obfuscate the given Python file and save it with a new name. """
@@ -252,7 +265,8 @@ class Pyfuscator(ast.NodeTransformer):
         new_file_path = new_name if new_name.endswith('.py') else new_name + '.py'
         with open(new_file_path, 'w', encoding='utf-8') as f:
             f.write(obfuscated_code)
-
+        obfuscation_map = {**self.var_map, **self.func_map, **self.class_map}
+        print(obfuscation_map)
         print(f"[+] Obfuscation complete. Saved as {new_file_path}")
 
 
