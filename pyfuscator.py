@@ -266,7 +266,6 @@ class Pyfuscator(ast.NodeTransformer):
         with open(new_file_path, 'w', encoding='utf-8') as f:
             f.write(obfuscated_code)
         obfuscation_map = {**self.var_map, **self.func_map, **self.class_map}
-        print(obfuscation_map)
         print(f"[+] Obfuscation complete. Saved as {new_file_path}")
 
 
@@ -278,7 +277,6 @@ def main():
     args = parser.parse_args()
     pyfuscator = Pyfuscator()
     pyfuscator.obfuscate_python_file(args.file, args.name, args.word_list)
-    print("[+] Obfuscation process completed.")
 
 if __name__ == "__main__":
     main()
