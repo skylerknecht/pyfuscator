@@ -9,7 +9,8 @@ class Pyfuscator(ast.NodeTransformer):
         self.var_map = {}
         self.func_map = {}
         self.class_map = {}
-        self.obfuscate_blacklist = set(dir(__builtins__)) | set(dir(object))
+        # Do not obfuscate builtins or other important names, such as _fields_ for ctypes
+        self.obfuscate_blacklist = set(dir(__builtins__)) | set(dir(object)) | {'_fields_'}
         self.word_list = [
             "apple", "banana", "cherry", "dragon", "elephant", "falcon", "gorilla", "hippo",
             "iguana", "jaguar", "kangaroo", "lion", "monkey", "narwhal", "octopus", "panda",
