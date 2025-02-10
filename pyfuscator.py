@@ -3,6 +3,7 @@ import ast
 import random
 import string
 
+
 class Pyfuscator(ast.NodeTransformer):
     def __init__(self):
         super().__init__()
@@ -17,16 +18,22 @@ class Pyfuscator(ast.NodeTransformer):
             "yak", "zebra"
         ]
 
-    def _random_name(self):
-        def random_capitalize(word):
-            return ''.join(c.upper() if random.choice([True, False]) else c for c in word)
-        
-        return random_capitalize(random.choice(self.word_list)) + random_capitalize(random.choice(self.word_list))
+    def _random_variable_name(self):
+        """Generates a random PEP 8-compliant variable name in snake_case."""
+        return f"{random.choice(self.word_list)}_{random.choice(self.word_list)}"
+
+    def _random_class_name(self):
+        """Generates a random PEP 8-compliant class name in PascalCase."""
+
+        def capitalize(word):
+            return word.capitalize()
+
+        return capitalize(random.choice(self.word_list)) + capitalize(random.choice(self.word_list))
 
     def visit_Import(self, node):
         """ Track imported modules to prevent obfuscation. """
         for alias in node.names:
-            self.obfuscate_blacklist.add(alias.name.split('.')[0])  
+            self.obfuscate_blacklist.add(alias.name.split('.')[0])
         return node
 
     def visit_ImportFrom(self, node):
@@ -37,7 +44,7 @@ class Pyfuscator(ast.NodeTransformer):
 
     def visit_Assign(self, node):
         """
-        Processes assignment (`=`) statements in the AST to obfuscate variable names while ensuring attributes (`obj.value`) 
+        Processes assignment (`=`) statements in the AST to obfuscate variable names while ensuring attributes (`obj.value`)
         and subscripts (`arr[0]`) are not affected.
 
         Why We Do This:
@@ -49,7 +56,7 @@ class Pyfuscator(ast.NodeTransformer):
         --------------------------------------------------------
         Python Code:
             x = 10
-        
+
         AST Representation:
             Assign(
                 targets=[Name(id='x', ctx=Store())],  # `x` is a variable name → should be obfuscated
@@ -75,7 +82,7 @@ class Pyfuscator(ast.NodeTransformer):
                 value=Constant(value=10)
             )
 
-        Why? 
+        Why?
             - `obj` is a user-defined variable and can be obfuscated.
             - `.value` is a property of `obj` and should NOT be renamed.
 
@@ -116,7 +123,7 @@ class Pyfuscator(ast.NodeTransformer):
                 if target.id in self.var_map.values() or target.id in self.obfuscate_blacklist:
                     continue
                 if target.id not in self.var_map:
-                    self.var_map[target.id] = self._random_name()
+                    self.var_map[target.id] = self._random_variable_name()
                 target.id = self.var_map[target.id]
 
         return node
@@ -133,7 +140,7 @@ class Pyfuscator(ast.NodeTransformer):
 
     def visit_ClassDef(self, node):
         if node.name not in self.class_map:
-            self.class_map[node.name] = self._random_name()
+            self.class_map[node.name] = self._random_class_name()
         node.name = self.class_map[node.name]
         self.generic_visit(node)
         return node
@@ -141,13 +148,13 @@ class Pyfuscator(ast.NodeTransformer):
     def visit_FunctionDef(self, node):
         if node.name not in self.obfuscate_blacklist:
             if node.name not in self.func_map:
-                self.func_map[node.name] = self._random_name()
+                self.func_map[node.name] = self._random_variable_name()
             node.name = self.func_map[node.name]
 
         # Rename function arguments
         for arg in node.args.args:
             if arg.arg not in self.var_map:
-                self.var_map[arg.arg] = self._random_name()
+                self.var_map[arg.arg] = self._random_variable_name()
             arg.arg = self.var_map[arg.arg]  # Rename the argument
 
         node = self.generic_visit(node)  # Process the function body
@@ -156,19 +163,19 @@ class Pyfuscator(ast.NodeTransformer):
     def visit_AsyncFunctionDef(self, node):
         if node.name not in self.obfuscate_blacklist:
             if node.name not in self.func_map:
-                self.func_map[node.name] = self._random_name()
+                self.func_map[node.name] = self._random_variable_name()
             node.name = self.func_map[node.name]
 
         # Rename function arguments
         for arg in node.args.args:
             if arg.arg not in self.var_map:
-                self.var_map[arg.arg] = self._random_name()
+                self.var_map[arg.arg] = self._random_variable_name()
             arg.arg = self.var_map[arg.arg]  # Rename the argument
 
         node = self.generic_visit(node)  # Process the function body
         return node
 
-    def visit_Constant(self, node):  
+    def visit_Constant(self, node):
         """ Obfuscate string and byte constants. """
         if isinstance(node.value, str):
             return self._encode_string(node.value, node)
@@ -180,9 +187,9 @@ class Pyfuscator(ast.NodeTransformer):
         """ Obfuscate f-strings while keeping dynamic expressions intact. """
         new_values = []
         for part in node.values:
-            if isinstance(part, ast.Str):  
+            if isinstance(part, ast.Str):
                 new_values.append(self._encode_string(part.s, part))
-            elif isinstance(part, ast.FormattedValue):  
+            elif isinstance(part, ast.FormattedValue):
                 new_values.append(
                     ast.Call(
                         func=ast.Name(id="str", ctx=ast.Load()),
@@ -192,7 +199,7 @@ class Pyfuscator(ast.NodeTransformer):
                 )
             else:
                 new_values.append(part)
-        
+
         return ast.copy_location(
             ast.Call(
                 func=ast.Attribute(value=ast.Constant(value=""), attr="join", ctx=ast.Load()),
@@ -209,7 +216,7 @@ class Pyfuscator(ast.NodeTransformer):
             offset = random.randint(1, 50)
             chars.append(ast.Constant(value=(ord(c) + offset) % 128))
             offsets.append(ast.Constant(value=offset))
-        
+
         new_node = ast.Call(
             func=ast.Attribute(value=ast.Constant(value=""), attr="join", ctx=ast.Load()),
             args=[
@@ -218,7 +225,8 @@ class Pyfuscator(ast.NodeTransformer):
                         func=ast.Name(id="chr", ctx=ast.Load()),
                         args=[
                             ast.BinOp(
-                                left=ast.BinOp(left=ast.Name(id="x", ctx=ast.Load()), op=ast.Sub(), right=ast.Name(id="y", ctx=ast.Load())),
+                                left=ast.BinOp(left=ast.Name(id="x", ctx=ast.Load()), op=ast.Sub(),
+                                               right=ast.Name(id="y", ctx=ast.Load())),
                                 op=ast.Mod(),
                                 right=ast.Constant(value=128)
                             )
@@ -227,8 +235,12 @@ class Pyfuscator(ast.NodeTransformer):
                     ),
                     generators=[
                         ast.comprehension(
-                            target=ast.Tuple(elts=[ast.Name(id="x", ctx=ast.Store()), ast.Name(id="y", ctx=ast.Store())], ctx=ast.Store()),
-                            iter=ast.Call(func=ast.Name(id="zip", ctx=ast.Load()), args=[ast.List(elts=chars, ctx=ast.Load()), ast.List(elts=offsets, ctx=ast.Load())], keywords=[]),
+                            target=ast.Tuple(
+                                elts=[ast.Name(id="x", ctx=ast.Store()), ast.Name(id="y", ctx=ast.Store())],
+                                ctx=ast.Store()),
+                            iter=ast.Call(func=ast.Name(id="zip", ctx=ast.Load()),
+                                          args=[ast.List(elts=chars, ctx=ast.Load()),
+                                                ast.List(elts=offsets, ctx=ast.Load())], keywords=[]),
                             ifs=[],
                             is_async=0
                         )
@@ -245,27 +257,26 @@ class Pyfuscator(ast.NodeTransformer):
             node.func.id = self.func_map[node.func.id]
         elif isinstance(node.func, ast.Attribute) and node.func.attr in self.func_map:
             node.func.attr = self.func_map[node.func.attr]
-        
+
         node.args = [self.visit(arg) for arg in node.args]
         return self.generic_visit(node)
-    
+
     def obfuscate_python_file(self, file_path: str, new_name: str, word_list):
         """ Obfuscate the given Python file and save it with a new name. """
         print(f"[*] Obfuscating {file_path}")
         if word_list:
-            with open(word_list, 'r', encoding='utf-8') as f:
+            with open(word_list, 'r', encoding='utf-8') as fd:
                 self.word_list = fd.read().split('\n')
 
         with open(file_path, 'r', encoding='utf-8') as f:
             tree = ast.parse(f.read(), filename=file_path)
-        
-        obfuscated_tree = self.visit(tree)  
-        obfuscated_code = ast.unparse(obfuscated_tree) 
-        
+
+        obfuscated_tree = self.visit(tree)
+        obfuscated_code = ast.unparse(obfuscated_tree)
+
         new_file_path = new_name if new_name.endswith('.py') else new_name + '.py'
         with open(new_file_path, 'w', encoding='utf-8') as f:
             f.write(obfuscated_code)
-        obfuscation_map = {**self.var_map, **self.func_map, **self.class_map}
         print(f"[+] Obfuscation complete. Saved as {new_file_path}")
 
 
@@ -277,6 +288,7 @@ def main():
     args = parser.parse_args()
     pyfuscator = Pyfuscator()
     pyfuscator.obfuscate_python_file(args.file, args.name, args.word_list)
+
 
 if __name__ == "__main__":
     main()

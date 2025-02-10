@@ -1,0 +1,63 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment (venv) and dependencies
+venv/
+env/
+.venv/
+ENV/
+Pipfile
+Pipfile.lock
+poetry.lock
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Logs and databases
+*.log
+*.sqlite3
+*.db
+
+# Unit test / coverage reports
+.coverage
+.coverage.*
+*.cover
+.hypothesis/
+nosetests.xml
+pytest_cache/
+junit.xml
+
+# PyCharm-specific files
+.idea/
+*.iml
+workspace.xml
+tasks.xml
+shelf/
+scratches/
+usage.statistics.xml
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# mypy
+.mypy_cache/
+dmypy.json
+
+# pytype static analysis
+.pytype/
+
+# VS Code (if used alongside PyCharm)
+.vscode/
+
+# Docker files (if using Docker)
+.dockerignore
+
+# OS-specific files
+.DS_Store
+Thumbs.db
