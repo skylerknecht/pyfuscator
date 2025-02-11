@@ -1,16 +1,23 @@
 import argparse
 import ast
 import random
-import string
 
 
 class Pyfuscator(ast.NodeTransformer):
-    def __init__(self):
+    def __init__(self, blacklist):
         super().__init__()
         self.var_map = {}
         self.func_map = {}
         self.class_map = {}
-        self.obfuscate_blacklist = set(dir(__builtins__)) | set(dir(object))
+        self.obfuscate_blacklist = {
+            *dir(__builtins__),
+            *dir(object),
+            *{
+                'self',
+                'cls'
+            },
+            *blacklist
+        }
         self.word_list = [
             "apple", "banana", "cherry", "dragon", "elephant", "falcon", "gorilla", "hippo",
             "iguana", "jaguar", "kangaroo", "lion", "monkey", "narwhal", "octopus", "panda",
@@ -153,6 +160,8 @@ class Pyfuscator(ast.NodeTransformer):
 
         # Rename function arguments
         for arg in node.args.args:
+            if arg.arg in self.obfuscate_blacklist:
+                continue
             if arg.arg not in self.var_map:
                 self.var_map[arg.arg] = self._random_variable_name()
             arg.arg = self.var_map[arg.arg]  # Rename the argument
@@ -168,6 +177,8 @@ class Pyfuscator(ast.NodeTransformer):
 
         # Rename function arguments
         for arg in node.args.args:
+            if arg.arg in self.obfuscate_blacklist:
+                continue
             if arg.arg not in self.var_map:
                 self.var_map[arg.arg] = self._random_variable_name()
             arg.arg = self.var_map[arg.arg]  # Rename the argument
@@ -285,8 +296,13 @@ def main():
     parser.add_argument('-f', '--file', required=True, help='Path to Python file')
     parser.add_argument('-n', '--name', required=True, help='New script name')
     parser.add_argument('-w', '--word_list', required=False, help='List of words to use for obfuscation', default=None)
+    parser.add_argument('-b', '--blacklist', required=False, help='Comma-separated list of names not obfuscate', default=None)
     args = parser.parse_args()
-    pyfuscator = Pyfuscator()
+
+    # Process blacklist argument
+    blacklist = set(args.blacklist.split(',')) if args.blacklist else set()
+
+    pyfuscator = Pyfuscator(blacklist)
     pyfuscator.obfuscate_python_file(args.file, args.name, args.word_list)
 
 
